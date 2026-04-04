@@ -1,4 +1,4 @@
-Struggling to send files within email limits (e.g., 18 MB)?
+Struggling to send multiple independent zip files within email limits (e.g., 18 MB)?
 
 No worries—feel free to use Yova’s Archiver. It features intelligent file grouping and optional split volumes. Users can skip oversized files, preserve folder paths, and manage archiving efficiently through an intuitive drag-and-drop interface.
 
