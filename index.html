@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yova's ZIP Archiver — Smart File Compression for Windows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0d12;
+    --panel:     #14141e;
+    --border:    #2a2a3c;
+    --blue:      #58a6ff;
+    --blue-dim:  #1a3556;
+    --green:     #37c85a;
+    --amber:     #f0aa2d;
+    --red:       #dc4b41;
+    --text:      #dcdce8;
+    --muted:     #76768c;
+    --white:     #ffffff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: .5;
+  }
+
+  /* ── GRID BG ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(88,166,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(88,166,255,.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HERO GLOW ── */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+  }
+  .glow-orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(88,166,255,.18) 0%, transparent 70%);
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+  }
+  .glow-orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(55,200,90,.10) 0%, transparent 70%);
+    bottom: 200px; right: -100px;
+  }
+
+  /* ── LAYOUT ── */
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 40px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,13,18,.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--blue);
+    letter-spacing: .08em;
+  }
+  .nav-logo span { color: var(--muted); }
+  .nav-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    border: 1px solid rgba(55,200,90,.35);
+    border-radius: 4px;
+    padding: 4px 10px;
+    background: rgba(55,200,90,.07);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    text-align: center;
+    padding: 80px 24px 60px;
+    overflow: hidden;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--blue);
+    border: 1px solid rgba(88,166,255,.3);
+    border-radius: 100px;
+    padding: 6px 16px;
+    margin-bottom: 28px;
+    background: rgba(88,166,255,.06);
+    animation: fadeUp .6s ease both;
+  }
+  .hero h1 {
+    font-size: clamp(38px, 7vw, 68px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    margin-bottom: 12px;
+    animation: fadeUp .6s .1s ease both;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--blue);
+  }
+  .hero-sub {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 540px;
+    margin: 0 auto 44px;
+    line-height: 1.65;
+    animation: fadeUp .6s .2s ease both;
+  }
+  .hero-cta-group {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    animation: fadeUp .6s .3s ease both;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 13px 26px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: transform .18s, box-shadow .18s, opacity .18s;
+    cursor: pointer;
+    border: none;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary {
+    background: var(--blue);
+    color: #000;
+    box-shadow: 0 0 0 0 rgba(88,166,255,.5);
+  }
+  .btn-primary:hover { box-shadow: 0 8px 28px rgba(88,166,255,.35); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--blue); color: var(--blue); }
+
+  .gh-icon { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
+
+  /* ── VIDEO SECTION ── */
+  .video-section {
+    padding: 10px 24px 70px;
+    animation: fadeUp .7s .35s ease both;
+  }
+  .video-wrap {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 0 60px rgba(88,166,255,.1), 0 24px 60px rgba(0,0,0,.5);
+    background: #000;
+    aspect-ratio: 16/9;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .video-wrap iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: none;
+  }
+  .yt-thumb-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    text-decoration: none;
+  }
+  .yt-thumb-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .yt-play-btn {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px; height: 80px;
+    background: rgba(255,0,0,.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s, background .2s;
+    box-shadow: 0 4px 30px rgba(0,0,0,.5);
+  }
+  .yt-thumb-link:hover .yt-play-btn {
+    background: #ff0000;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  .yt-play-btn svg { margin-left: 6px; }
+  .yt-watch-label {
+    position: absolute;
+    bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.75);
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .08em;
+    padding: 6px 16px;
+    border-radius: 100px;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+  }
+  .video-corner {
+    position: absolute;
+    width: 18px; height: 18px;
+    border-color: var(--blue);
+    border-style: solid;
+    opacity: .6;
+  }
+  .video-corner.tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .video-corner.tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+  .video-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+  .video-corner.br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+  /* ── FEATURES ── */
+  .features {
+    padding: 0 24px 70px;
+  }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 36px;
+    text-align: center;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .feat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px;
+    transition: border-color .2s, transform .2s;
+  }
+  .feat-card:hover { border-color: rgba(88,166,255,.4); transform: translateY(-3px); }
+  .feat-icon {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+  .feat-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .feat-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── STATS ROW ── */
+  .stats {
+    max-width: 860px;
+    margin: 0 auto 70px;
+    padding: 0 24px;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .stat {
+    flex: 1;
+    text-align: center;
+    padding: 24px 12px;
+    border-right: 1px solid var(--border);
+  }
+  .stat:last-child { border-right: none; }
+  .stat-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--blue);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: .05em;
+  }
+
+  /* ── CTA BOTTOM ── */
+  .cta-bottom {
+    text-align: center;
+    padding: 40px 24px 80px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .cta-bottom h2 {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    letter-spacing: -.02em;
+  }
+  .cta-bottom p {
+    color: var(--muted);
+    margin-bottom: 30px;
+    font-size: 15px;
+    font-family: 'Space Mono', monospace;
+    line-height: 1.6;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-left {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-left span { color: var(--blue); }
+  .footer-right {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-right a { color: var(--blue); text-decoration: none; }
+  .footer-right a:hover { text-decoration: underline; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    footer { flex-direction: column; text-align: center; }
+    .stats { flex-direction: column; }
+    .stat { border-right: none; border-bottom: 1px solid var(--border); }
+    .stat:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">YOVA<span>/</span>ZIP_ARCHIVER</div>
+  <div class="nav-badge">v1.0 · Free &amp; Open Source</div>
+</nav>
+
+<!-- HERO -->
+<div style="position:relative; overflow:hidden;">
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <div class="hero">
+    <div class="hero-tag">Windows PowerShell App · Powered by 7-Zip</div>
+    <h1>Smart ZIP Archiver<br>for <em>Power Users</em></h1>
+    <p class="hero-sub">
+      Pack hundreds of files into independent ZIP archives — each respecting your size limit —
+      with encryption, CSV reports, drag &amp; drop, and a polished dark UI.
+    </p>
+    <div class="hero-cta-group">
+      <a class="btn btn-primary" href="https://github.com/yovaraj-collab/Yova-s-Zip-Archiver-using-7zip-" target="_blank" rel="noopener">
+        <svg class="gh-icon" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+        View on GitHub
+      </a>
+      <a class="btn btn-ghost" href="#video">Watch Demo ↓</a>
+    </div>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="video-section" id="video">
+    <div class="video-wrap">
+      <div class="video-corner tl"></div>
+      <div class="video-corner tr"></div>
+      <div class="video-corner bl"></div>
+      <div class="video-corner br"></div>
+      <a class="yt-thumb-link" href="https://youtu.be/Qg7cAxRU7PA" target="_blank" rel="noopener" title="Watch on YouTube">
+        <img src="https://img.youtube.com/vi/Qg7cAxRU7PA/maxresdefault.jpg" alt="Yova's ZIP Archiver Demo">
+        <div class="yt-play-btn">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="yt-watch-label">▶ Watch on YouTube</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-val">AES-256</div>
+    <div class="stat-label">Encryption</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">0–9</div>
+    <div class="stat-label">Compression Levels</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">CSV</div>
+    <div class="stat-label">Audit Reports</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">Free</div>
+    <div class="stat-label">Open Source</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="features">
+  <div class="section-label">// What It Does</div>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📦</div>
+      <h3>Size-Limited Archives</h3>
+      <p>Splits your files across independent ZIPs, each staying under your chosen MB limit.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔐</div>
+      <h3>AES-256 Encryption</h3>
+      <p>Password-protect every archive with industry-standard AES-256 via 7-Zip.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📂</div>
+      <h3>Drag &amp; Drop UI</h3>
+      <p>Drop folders directly onto the path fields. No typing long directory paths.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <h3>CSV Audit Report</h3>
+      <p>Auto-generates a timestamped CSV showing every file's status and destination archive.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🗂️</div>
+      <h3>Preserve Folder Structure</h3>
+      <p>Optionally store files with their relative paths intact inside each ZIP.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <h3>Sort &amp; Split Volumes</h3>
+      <p>Sort by name, largest, or smallest first. Enable split volumes for oversized single files.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CTA BOTTOM -->
+<div class="cta-bottom">
+  <h2>Ready to archive smarter?</h2>
+  <p>Free, open source, no install needed — just run the .bat file on any Windows machine with 7-Zip.</p>
+  <a class="btn btn-primary" href="https://github.com/yovaraj-collab/Yova-s-Zip-Archiver-using-7zip-" target="_blank" rel="noopener" style="font-size:15px; padding:15px 32px; margin: 0 auto; display:inline-flex;">
+    <svg class="gh-icon" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+    Download on GitHub
+  </a>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    <span>YOVA</span>/ZIP_ARCHIVER &nbsp;·&nbsp; Requires Windows + 7-Zip
+  </div>
+  <div class="footer-right">
+    Source: <a href="https://github.com/yovaraj-collab/Yova-s-Zip-Archiver-using-7zip-" target="_blank" rel="noopener">github.com/yovaraj-collab</a>
+  </div>
+</footer>
+
+</body>
+</html>
