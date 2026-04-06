@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "SCRIPT=%~dp0YovaZipArchiver_plus.ps1"
+set "SCRIPT=%~dp0YovaZipArchiver_v3.ps1"
 if not exist "%SCRIPT%" (
   echo Missing script: %SCRIPT%
   pause
